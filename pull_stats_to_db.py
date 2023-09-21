@@ -62,10 +62,10 @@ def player_exist_in_db(player_name):
 
 def create_stats_backup():
     import datetime
-    today = datetime.date.today()
+    now = datetime.datetime.now()
     conn = sqlite3.connect("data/cod_stats.db")
     df = pd.read_sql(sql="SELECT * FROM stats", con=conn)
-    df.to_csv(f"data/stats_backup_{today: %Y%m%d%H%M%S}.csv")
+    df.to_csv(f"data/stats_backup_{now: %Y%m%d%H%M%S}.csv")
     conn.close()
 
 
