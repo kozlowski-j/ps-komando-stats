@@ -32,7 +32,6 @@ def aggregate_stats(data, player_name):
                'multikills', 'shotsFired', 'shotsLanded', 'shotsMissed', 'hits', 'timePlayed',
                'suicides', 'shots', 'timePlayedAlive', 'ekia']].sum()).T
     result = pd.concat([result_meta, sums], axis=1)
-    result = result.loc[:, (result != 0).any(axis=0)]
     result['kdRatio'] = round(result['kills'] / result['deaths'], 3)
     result['ekiadRatio'] = round(result['ekia'] / result['deaths'], 3)
     result['accuracy'] = round(result['shotsLanded'] / result['shotsFired'], 3)
@@ -51,10 +50,10 @@ def aggregate_stats(data, player_name):
 
 
 @click.command()
-@click.option("--data_path")
+@click.option("--data_path", default="data")
 def main(data_path):
     result = pd.DataFrame()
-    conn = sqlite3.connect(os.path.join(data_path, "data/cod_stats.db"))
+    conn = sqlite3.connect(os.path.join(data_path, "cod_stats.db"))
     df = pd.read_sql(
         sql=f"SELECT * FROM stats",
         con=conn
@@ -64,7 +63,8 @@ def main(data_path):
         player_name = player_id.split("#")[0].lower().replace("-", "_")
         df3 = aggregate_stats(df, player_name)
         df3.index = [player_name]
-        result = pd.concat([result, df3])
+        if df3['matches'].values[0] > 0:
+            result = pd.concat([result, df3])
 
     for col in result.columns:
         result[col] = result[col].astype(str)

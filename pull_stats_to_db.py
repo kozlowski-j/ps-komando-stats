@@ -1,5 +1,7 @@
 import asyncio
 import os
+from sqlite3 import OperationalError
+
 from cod_api import API, platforms
 import pandas as pd
 import sqlite3
@@ -52,14 +54,17 @@ def find_last_match(player_name: str, db_path: str):
 
 
 def player_exist_in_db(player_name: str, db_path: str):
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute(f"SELECT player FROM stats WHERE player = '{player_name}'")
-    # Fetch the result
-    result = cursor.fetchone()
-    conn.close()
-    # If result is not None, the table exists
-    return result is not None
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute(f"SELECT player FROM stats WHERE player = '{player_name}'")
+        # Fetch the result
+        result = cursor.fetchone()
+        conn.close()
+        # If result is not None, the table exists
+        return result is not None
+    except OperationalError as e:
+        return False
 
 
 def create_stats_backup(data_path="data", db_name="cod_stats.db"):
@@ -76,9 +81,8 @@ def create_stats_backup(data_path="data", db_name="cod_stats.db"):
 
 
 @click.command()
-@click.option("--data_path", help="Data directory.")
+@click.option("--data_path", default="data", help="Data directory.")
 def run_grajki(data_path):
-    print(data_path)
     loop = asyncio.get_event_loop()
     create_stats_backup()
     for player_id in grajki:
@@ -86,24 +90,23 @@ def run_grajki(data_path):
 
 
 # Create an event loop
-async def main(player_id: str, data_path="data"):
+async def main(player_id: str, data_path):
     db_path = os.path.join(data_path, "cod_stats.db")
     player_name = player_id.split("#")[0].lower().replace('-', '_')
-    print("-" * 30, '\n  ', player_name)
+    print(f"\n{player_name:-^{30}}")
     combat_history = await get_players_combat_history(player_id)
     data = pd.DataFrame(combat_history["data"]["matches"])
     data = data[data["isPresentAtEnd"] == True]
     data['player'] = player_name
     stats_flat = transform_data(data)
-    if os.path.exists(db_path):
-        if player_exist_in_db(player_name, db_path):
-            last_match_dt = find_last_match(player_name, db_path)
-            print("Pulling newest matches...")
-            stats_flat = stats_flat[stats_flat['utcStartSeconds'] > last_match_dt].copy()
-            if stats_flat.shape[0] == 0:
-                print("No new matches since last pull.")
-            else:
-                save_df_to_db(stats_flat, "stats", "append", db_path=db_path)
+    if player_exist_in_db(player_name, db_path):
+        last_match_dt = find_last_match(player_name, db_path)
+        print("Pulling newest matches...")
+        stats_flat = stats_flat[stats_flat['utcStartSeconds'] > last_match_dt].copy()
+        if stats_flat.shape[0] == 0:
+            print("No new matches since last pull.")
+        else:
+            save_df_to_db(stats_flat, "stats", "append", db_path=db_path)
     else:
         # Call the function and await its result
         print("Pulling data for the first time...")
