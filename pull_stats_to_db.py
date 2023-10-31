@@ -63,14 +63,16 @@ def player_exist_in_db(player_name: str, db_path: str):
 
 
 def create_stats_backup(data_path="data", db_name="cod_stats.db"):
-    import datetime
-    now = datetime.datetime.now()
-    conn = sqlite3.connect(os.path.join(data_path, db_name))
-    df = pd.read_sql(sql="SELECT * FROM stats", con=conn)
-    if not os.path.exists(data_path):
-        os.makedirs(data_path)
-    df.to_csv(os.path.join(data_path, f"stats_backup_{now: %Y%m%d%H%M%S}.csv"))
-    conn.close()
+    db_path = os.path.join(data_path, db_name)
+    if os.path.exists(db_path):
+        import datetime
+        now = datetime.datetime.now()
+        conn = sqlite3.connect(db_path)
+        df = pd.read_sql(sql="SELECT * FROM stats", con=conn)
+        if not os.path.exists(data_path):
+            os.makedirs(data_path)
+        df.to_csv(os.path.join(data_path, f"stats_backup_{now: %Y%m%d%H%M%S}.csv"))
+        conn.close()
 
 
 @click.option("--data_path", help="Data directory.")
