@@ -75,8 +75,10 @@ def create_stats_backup(data_path="data", db_name="cod_stats.db"):
         conn.close()
 
 
+@click.command()
 @click.option("--data_path", help="Data directory.")
-def run_grajki(data_path="data"):
+def run_grajki(data_path):
+    print(data_path)
     loop = asyncio.get_event_loop()
     create_stats_backup()
     for player_id in grajki:
@@ -87,7 +89,7 @@ def run_grajki(data_path="data"):
 async def main(player_id: str, data_path="data"):
     db_path = os.path.join(data_path, "cod_stats.db")
     player_name = player_id.split("#")[0].lower().replace('-', '_')
-    print("-" * 30, '\n', player_name)
+    print("-" * 30, '\n  ', player_name)
     combat_history = await get_players_combat_history(player_id)
     data = pd.DataFrame(combat_history["data"]["matches"])
     data = data[data["isPresentAtEnd"] == True]

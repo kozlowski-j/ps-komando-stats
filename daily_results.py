@@ -50,6 +50,7 @@ def aggregate_stats(data, player_name):
                    'mostDeathsInMatch', 'mostObjectivesInMatch']]
 
 
+@click.command()
 @click.option("--data_path")
 def main(data_path):
     result = pd.DataFrame()
