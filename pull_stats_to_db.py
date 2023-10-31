@@ -76,6 +76,13 @@ def create_stats_backup(data_path="data", db_name="cod_stats.db"):
 
 
 @click.option("--data_path", help="Data directory.")
+def run_grajki(data_path="data"):
+    loop = asyncio.get_event_loop()
+    create_stats_backup()
+    for player_id in grajki:
+        loop.run_until_complete(main(player_id, data_path))
+
+
 # Create an event loop
 async def main(player_id: str, data_path="data"):
     db_path = os.path.join(data_path, "cod_stats.db")
@@ -86,14 +93,15 @@ async def main(player_id: str, data_path="data"):
     data = data[data["isPresentAtEnd"] == True]
     data['player'] = player_name
     stats_flat = transform_data(data)
-    if player_exist_in_db(player_name, db_path):
-        last_match_dt = find_last_match(player_name, db_path)
-        print("Pulling newest matches...")
-        stats_flat = stats_flat[stats_flat['utcStartSeconds'] > last_match_dt].copy()
-        if stats_flat.shape[0] == 0:
-            print("No new matches since last pull.")
-        else:
-            save_df_to_db(stats_flat, "stats", "append", db_path=db_path)
+    if os.path.exists(db_path):
+        if player_exist_in_db(player_name, db_path):
+            last_match_dt = find_last_match(player_name, db_path)
+            print("Pulling newest matches...")
+            stats_flat = stats_flat[stats_flat['utcStartSeconds'] > last_match_dt].copy()
+            if stats_flat.shape[0] == 0:
+                print("No new matches since last pull.")
+            else:
+                save_df_to_db(stats_flat, "stats", "append", db_path=db_path)
     else:
         # Call the function and await its result
         print("Pulling data for the first time...")
@@ -103,7 +111,4 @@ async def main(player_id: str, data_path="data"):
 # Create an asyncio event loop and run the main function
 if __name__ == "__main__":
     api = API()
-    loop = asyncio.get_event_loop()
-    create_stats_backup()
-    for player_id in grajki:
-        loop.run_until_complete(main(player_id))
+    run_grajki()

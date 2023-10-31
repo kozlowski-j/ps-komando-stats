@@ -53,7 +53,7 @@ def aggregate_stats(data, player_name):
 @click.option("--data_path")
 def main(data_path):
     result = pd.DataFrame()
-    conn = sqlite3.connect(os.path.join(data_path, "cod_stats.db"))
+    conn = sqlite3.connect(os.path.join(data_path, "data/cod_stats.db"))
     df = pd.read_sql(
         sql=f"SELECT * FROM stats",
         con=conn
