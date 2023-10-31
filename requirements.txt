@@ -1,4 +1,7 @@
 jupyter
 numpy
-pandas
+pandas~=2.1.0
 cod-api
+DateTime~=5.2
+asyncio~=3.4.3
+click~=8.1.7

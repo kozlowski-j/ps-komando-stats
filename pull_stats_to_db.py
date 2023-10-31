@@ -1,8 +1,9 @@
 import asyncio
+import os
 from cod_api import API, platforms
 import pandas as pd
 import sqlite3
-import time
+import click
 
 from utils import get_date_from_epoch, save_df_to_db
 
@@ -16,7 +17,7 @@ grajki = [
 ]
 
 
-async def get_players_combat_history(player_id):
+async def get_players_combat_history(player_id: str):
     # login in with sso token
     await api.loginAsync('NDU4NDg1NTE3MTc2NjQ1ODM1NToxNjk1NDMwNzE1MzgyOmZiOTMzMDEwNmI4ZjNhMDYyNjFmYzA3Mzc2OWZmMTQw')
     # retrieving combat history
@@ -29,7 +30,8 @@ async def get_players_combat_history(player_id):
 
 def transform_data(data):
     metadata = data[["player", "matchID", "result", "utcStartSeconds", "utcEndSeconds", "map", "mode"]].copy()
-    stats = data["playerStats"].apply(pd.Series)
+    # stats = data["playerStats"].apply(pd.Series)
+    stats = pd.DataFrame(data["playerStats"].tolist())
     metadata["date"] = metadata["utcStartSeconds"].apply(lambda x: get_date_from_epoch(x))
     stats["ekiadRatio"] = stats["ekiadRatio"].round(2)
     stats["accuracy"] = stats["accuracy"].round(3)
@@ -40,8 +42,8 @@ def transform_data(data):
     return df
 
 
-def find_last_match(player_name):
-    conn = sqlite3.connect("data/cod_stats.db")
+def find_last_match(player_name: str, db_path: str):
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute(f"SELECT max(utcStartSeconds) FROM stats WHERE player = '{player_name}'")
     result = cursor.fetchone()
@@ -49,8 +51,8 @@ def find_last_match(player_name):
     return int(result[0])
 
 
-def player_exist_in_db(player_name):
-    conn = sqlite3.connect("data/cod_stats.db")
+def player_exist_in_db(player_name: str, db_path: str):
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute(f"SELECT player FROM stats WHERE player = '{player_name}'")
     # Fetch the result
@@ -60,17 +62,21 @@ def player_exist_in_db(player_name):
     return result is not None
 
 
-def create_stats_backup():
+def create_stats_backup(data_path="data", db_name="cod_stats.db"):
     import datetime
     now = datetime.datetime.now()
-    conn = sqlite3.connect("data/cod_stats.db")
+    conn = sqlite3.connect(os.path.join(data_path, db_name))
     df = pd.read_sql(sql="SELECT * FROM stats", con=conn)
-    df.to_csv(f"data/stats_backup_{now: %Y%m%d%H%M%S}.csv")
+    if not os.path.exists(data_path):
+        os.makedirs(data_path)
+    df.to_csv(os.path.join(data_path, f"stats_backup_{now: %Y%m%d%H%M%S}.csv"))
     conn.close()
 
 
+@click.option("--data_path", help="Data directory.")
 # Create an event loop
-async def main(player_id):
+async def main(player_id: str, data_path="data"):
+    db_path = os.path.join(data_path, "cod_stats.db")
     player_name = player_id.split("#")[0].lower().replace('-', '_')
     print("-" * 30, '\n', player_name)
     combat_history = await get_players_combat_history(player_id)
@@ -78,18 +84,18 @@ async def main(player_id):
     data = data[data["isPresentAtEnd"] == True]
     data['player'] = player_name
     stats_flat = transform_data(data)
-    if player_exist_in_db(player_name):
-        last_match_dt = find_last_match(player_name)
+    if player_exist_in_db(player_name, db_path):
+        last_match_dt = find_last_match(player_name, db_path)
         print("Pulling newest matches...")
         stats_flat = stats_flat[stats_flat['utcStartSeconds'] > last_match_dt].copy()
         if stats_flat.shape[0] == 0:
             print("No new matches since last pull.")
         else:
-            save_df_to_db(stats_flat, "stats", "append")
+            save_df_to_db(stats_flat, "stats", "append", db_path=db_path)
     else:
         # Call the function and await its result
         print("Pulling data for the first time...")
-        save_df_to_db(stats_flat, "stats", "append")
+        save_df_to_db(stats_flat, "stats", "append", db_path=db_path)
 
 
 # Create an asyncio event loop and run the main function

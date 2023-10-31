@@ -19,9 +19,9 @@ def today_date_as_epoch():
     return int(time_since_epoch.total_seconds())
 
 
-def save_df_to_db(df, table_name, if_exists, save_index=False):
+def save_df_to_db(df, table_name, if_exists, save_index=False, db_path="data/cod_stats.db"):
     # Connect to the SQLite database
-    conn = sqlite3.connect("data/cod_stats.db")
+    conn = sqlite3.connect(db_path)
 
     # Append the DataFrame to the SQLite table
     df.to_sql(table_name, conn, if_exists=if_exists, index=save_index)
